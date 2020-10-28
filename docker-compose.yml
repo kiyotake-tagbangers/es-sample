@@ -20,3 +20,8 @@ services:
 #    command: redis-server --appendonly yes --requirepass password
 #    ports:
 #      - "6379:6379"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    ports:
+      - 5601:5601
