@@ -5,6 +5,14 @@ $ curl -X GET "localhost:9200/_cat/health?v&pretty"
 
 epoch      timestamp cluster        status node.total node.data shards pri relo init unassign pending_tasks max_task_wait_time active_shards_percent
 1603769639 03:33:59  docker-cluster green           1         1      0   0    0    0        0             0                  -                100.0%
+
+$ curl -XGET "http://elasticsearch:9200/_cluster/health"
+```
+
+- node のステータスの確認
+
+```shell
+$ curl -XGET "http://elasticsearch:9200/_cat/nodes?v"
 ```
 
 - [ドキュメントに index をつける](https://www.elastic.co/guide/en/elasticsearch/reference/7.4/getting-started-index.html)
@@ -19,6 +27,16 @@ $ curl -X PUT "localhost:9200/customer/_doc/1?pretty" -H 'Content-Type: applicat
   "name": "John Doe"
 }
 '
+
+# replica shard は同じノードには作られない(ノードの障害に対してレプリケーションできていないことになるため)
+# cluster は single node のため replica shard が割り当てられてないため、ステータスが yellow になる
+$ curl -XGET "http://localhost:9200/_cat/indices?v"
+health status index                    uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   pages                    0-zxfo2lR6mSKUUX5Mq7pA   1   1          0            0       230b           230b
+
+$ curl -XGET "http://localhost:9200/_cat/shards"
+pages                    0 p STARTED    0   283b 172.20.0.2 c854f7e06616
+pages                    0 r UNASSIGNED
 ```
 
 - [取得](https://www.elastic.co/guide/en/elasticsearch/reference/7.4/getting-started-index.html#getting-started-index)
