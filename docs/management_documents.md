@@ -50,6 +50,28 @@ curl -XGET "http://elasticsearch:9200/products/_doc/100"
 # primary_term は変更を実行する primary shard
 curl -XPOST "http://elasticsearch:9200/products/_update/100?if_primary_term=1&if_seq_no=24" -H 'Content-Type: application/json' -d'{  "doc":{    "in_stock": 13  }}'
 
-# 
+# updata by query
 curl -XPOST "http://elasticsearch:9200/products/_update_by_query" -H 'Content-Type: application/json' -d'{  "script": {    "source": "ctx._source.in_stock--"  },  "query": {    "match_all": {}  }}'
+
+# 全ての ドキュメントの stock が -1 されている
+curl -XGET "http://elasticsearch:9200/products/_search" -H 'Content-Type: application/json' -d'{  "query": {    "match_all": {}  }}'
+
+# delete by query
+curl -XPOST "http://elasticsearch:9200/products/_delete_by_query" -H 'Content-Type: application/json' -d'{  "query": {    "match_all": {}  }}'
+
+# bulk
+curl -XPOST "http://elasticsearch:9200/_bulk" -H 'Content-Type: application/json' -d'{ "index": { "_index": "products", "_id": 200 } }{ "name": "Espresso Machine", "price": 199, "in_stock": 5 }{ "create": { "_index": "products", "_id": 201 } }{ "name": "Milk Frother", "price": 149, "in_stock": 14 }'
+
+curl -XGET "http://elasticsearch:9200/products/_search" -H 'Content-Type: application/json' -d'{  "query": {    "match_all": {}  }}'
+
+# bulk request from file
+ls products-bulk.json
+
+head -n 2 products-bulk.json 
+{"index":{"_id":1}}
+{"name":"Wine - Maipo Valle Cabernet","price":152,"in_stock":38,"sold":47,"tags":["Alcohol","Wine"],"description":"Aliquam augue quam, sollicitudin vitae, consectetuer eget, rutrum at, lorem. Integer tincidunt ante vel ipsum. Praesent blandit lacinia erat. Vestibulum sed magna at nunc commodo placerat. Praesent blandit. Nam nulla. Integer pede justo, lacinia eget, tincidunt eget, tempus vel, pede. Morbi porttitor lorem id ligula.","is_active":true,"created":"2004\/05\/13"}
+
+curl -H "Content-Type: application/x-ndjson" -XPOST http://localhost:9200/products/_bulk --data-binary "@products-bulk.json"
+
+curl -XGET "http://elasticsearch:9200/_cat/shards?v"
 ```
