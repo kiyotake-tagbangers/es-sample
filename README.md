@@ -1,13 +1,19 @@
 # Run Locally
 
+- 起動
+
 ```shell
 $ docker-compose up -d
 
 $ docker container ls
+CONTAINER ID        IMAGE                                   COMMAND                  CREATED             STATUS              PORTS                                            NAMES
+26b47dfd7a07        docker.elastic.co/kibana/kibana:7.4.2   "/usr/local/bin/dumb…"   3 hours ago         Up 3 hours          0.0.0.0:5601->5601/tcp                           es-sample_kibana_1
+3e4d5deece3b        es-sample_elasticsearch                 "/usr/local/bin/dock…"   2 days ago          Up 2 days           0.0.0.0:9200->9200/tcp, 0.0.0.0:9300->9300/tcp   es-sample_elasticsearch_1
+```
 
-CONTAINER ID        IMAGE                     COMMAND                  CREATED             STATUS              PORTS                                            NAMES
-3e4d5deece3b        es-sample_elasticsearch   "/usr/local/bin/dock…"   7 minutes ago       Up 7 minutes        0.0.0.0:9200->9200/tcp, 0.0.0.0:9300->9300/tcp   es-sample_elasticsearch_1
+- ES が立ち上がっているか確認
 
+```shell
 $ curl localhost:9200
 {
   "name" : "3e4d5deece3b",
@@ -27,3 +33,5 @@ $ curl localhost:9200
   "tagline" : "You Know, for Search"
 }
 ```
+
+- Kibana にアクセス( [http://localhost:5601/](http://localhost:5601/) )
