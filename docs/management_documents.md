@@ -67,11 +67,169 @@ curl -XGET "http://elasticsearch:9200/products/_search" -H 'Content-Type: applic
 # bulk request from file
 ls products-bulk.json
 
-head -n 2 products-bulk.json 
+head -n 2 products-bulk.json
 {"index":{"_id":1}}
 {"name":"Wine - Maipo Valle Cabernet","price":152,"in_stock":38,"sold":47,"tags":["Alcohol","Wine"],"description":"Aliquam augue quam, sollicitudin vitae, consectetuer eget, rutrum at, lorem. Integer tincidunt ante vel ipsum. Praesent blandit lacinia erat. Vestibulum sed magna at nunc commodo placerat. Praesent blandit. Nam nulla. Integer pede justo, lacinia eget, tincidunt eget, tempus vel, pede. Morbi porttitor lorem id ligula.","is_active":true,"created":"2004\/05\/13"}
 
 curl -H "Content-Type: application/x-ndjson" -XPOST http://localhost:9200/products/_bulk --data-binary "@products-bulk.json"
 
 curl -XGET "http://elasticsearch:9200/_cat/shards?v"
+```
+
+- kibana で実行する場合
+
+```shell
+PUT /products
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1
+  }
+}
+
+# インデックスの作成
+PUT /products
+
+# インデックスの削除
+DELETE /products
+
+# ドキュメントを追加
+# インデックスはなければ自動的に追加される
+POST /products/_doc
+{
+  "name": "Coffee Maker",
+  "price": 64,
+  "in_stock": 10
+}
+
+# ID を指定して作成
+PUT /products/_doc/100
+{
+  "name": "Toaster",
+  "price": 30,
+  "in_stock": 4
+}
+
+GET /products/_search
+
+# Retrieve
+GET /products/_doc/100
+
+# 更新(documents は immutable, 新たなものに作り直されている)
+POST /products/_update/100
+{
+  "doc": {
+    "in_stock": 3
+  }
+}
+
+# new field
+POST /products/_update/100
+{
+  "doc": {
+    "tags": ["electoronics"]
+  }
+}
+
+# scripted update
+POST /products/_update/100
+{
+  "script": {
+    "source": "ctx._source.in_stock --"
+  }
+}
+
+GET /products/_doc/100
+
+# scripted update
+POST /products/_update/100
+{
+  "script": {
+    "source": "ctx._source.in_stock -= params.quantity",
+    "params": {
+      "quantity": 4
+    }
+  }
+}
+
+# if
+POST /products/_update/100
+{
+  "script": {
+    "source": """
+      if (ctx._source.in_stock > 0) {
+        ctx._source.in_stock--;
+      }
+    """
+  }
+}
+
+# upsert
+# ドキュメントが存在していたらupdata
+# なければ、新たに作成
+POST /products/_update/101
+{
+  "script": {
+    "source": "ctx._source.in_stock++"
+  },
+  "upsert": {
+    "name": "Blender",
+    "price": 399,
+    "in_stock": 5
+  }
+}
+
+GET /products/_doc/101
+DELETE /products/_doc/101
+
+PUT /products/_doc/100
+{
+    "name": "Toaster",
+    "price": 49,
+    "in_stock": 4
+}
+
+GET /products/_doc/100
+
+# optimistic concurrency control
+GET /products/_doc/100
+
+POST /products/_update/100?if_primary_term=1&if_seq_no=24
+{
+  "doc":{
+    "in_stock": 13
+  }
+}
+
+# update by query
+POST /products/_update_by_query
+{
+  "script": {
+    "source": "ctx._source.in_stock--"
+  },
+  "query": {
+    "match_all": {}
+  }
+}
+
+GET /products/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+POST /products/_delete_by_query
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# bulk
+POST /_bulk
+{ "index": { "_index": "products", "_id": 200 } }
+{ "name": "Espresso Machine", "price": 199, "in_stock": 5 }
+{ "create": { "_index": "products", "_id": 201 } }
+{ "name": "Milk Frother", "price": 149, "in_stock": 14 }
 ```
