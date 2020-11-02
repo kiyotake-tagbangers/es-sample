@@ -1,14 +1,14 @@
-- 発表で使うものをひとまとめにしたもの
-    - 詳細はそれぞれのファイルで検証
-
 ```shell
 # --------------------------------
 ### 基本操作
+
 # インデックスの作成
-PUT /products
+PUT /reviews
+
+GET /reviews
 
 # インデックスの削除
-DELETE /products
+DELETE /reviews
 
 # mapping の定義(RDS でいうスキーマのイメージ)
 PUT /reviews
@@ -17,12 +17,6 @@ PUT /reviews
     "properties": {
       "rating": {
         "type": "float"
-      },
-      "content":{
-        "type": "text"
-      },
-      "product_id":{
-        "type": "integer"
       },
       "author":{
         "properties": {
@@ -37,165 +31,127 @@ PUT /reviews
     }
   }
 }
+
 GET /reviews/_mapping
+
 DELETE /reviews
 
-# ドキュメントを追加
-# インデックスはなければ自動的に追加される
-POST /products/_doc
+# 事前にスキーマを定義せずにドキュメントを登録
+POST /reviews/_doc/
 {
-  "name": "Coffee Maker",
-  "price": 64,
-  "in_stock": 10
+  "rating": 4,
+  "author": {
+    "first_name": "Tagbang",
+    "last_name": "Taro"
+  },
+  "comment": "this is awesome"
 }
 
-# ID を指定して作成
-PUT /products/_doc/100
+POST /reviews/_doc/
 {
-  "name": "Toaster",
-  "price": 30,
-  "in_stock": 4
+  "rating": "dummy",
+  "author": {
+    "first_name": "Tagbang",
+    "last_name": "Taro"
+  },
+  "comment": "this is awesome"
 }
 
-GET /products/_search
-
-# ID を指定して取得
-GET /products/_doc/100
-
-# 更新(documents は immutable, 新たなものに作り直されている)
-POST /products/_update/100
+# PUT では id 明示的にを指定して作成
+PUT /reviews/_doc/1
 {
-  "doc": {
-    "in_stock": 3
+  "rating": 5,
+  "author": {
+    "first_name": "Yamada",
+    "last_name": "Jiro"
+  },
+  "comment": "this is excellent!"
+}
+
+GET /reviews/_doc/1
+
+# ドキュメントの型から推論して mapping が定義される
+# 文字列は text型とkeyword型のマルチフィールドとして定義される
+GET /reviews/_mapping
+
+# match は全文検索用のクエリ
+# 転置インデックスを利用して検索
+GET /reviews/_search
+{"query":{"match":{"comment":"this"}}}
+
+# 条件を増やしたことで _score の値が増えた(より関連度が高い)
+GET /reviews/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "comment": "this"
+          }
+        },
+        {
+          "range": {
+            "rating": {
+              "gte": 3
+            }
+          }
+        }
+      ]
+    }
   }
 }
 
-# ドキュメントの削除
-DELETE /products/_doc/100
-
-# インデックスの削除
-DELETE /products
-
-# 条件にマッチしてれば scirpt を実行
-POST /products/_update/100
+# filter を使用する場合は _score には影響を及ぼさない
+# クエリキャッシュがあるため、単に検索範囲を限定したい(=スコアに関連しないクエリ)なら filter を使う
+GET /reviews/_search
 {
-  "script": {
-    "source": """
-      if (ctx._source.in_stock > 0) {
-        ctx._source.in_stock--;
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "comment": "this"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "range": {
+            "rating": {
+              "gte": 3
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+# term は完全一致の検索用のクエリ
+# keyword型のフィールドを検索
+GET /reviews/_search
+{
+  "query": {
+    "term": {
+      "comment.keyword": {
+        "value": "this is awesome"
       }
-    """
+    }
   }
 }
 
 # --------------------------------
 ### SQL との比較
-# select * from bank
-GET /bank/_search
-{
-  "query": {
-    "match_all": {}
-  }
-}
 
-# select * bank limit 3 offset 5
-GET /bank/_search
-{
-  "from": 5,
-  "size": 3,
-  "query": {
-    "match_all": {}
-  }
-}
-
-# select account_number, email from bank
+# select account_number form bank where employer in ("Pyrami","Anocha","Reversus")
+# terms は完全一致で複数の値を指定できる
 GET /bank/_search
 {
   "_source": [
     "account_number",
     "email"
   ],
-  "query": {
-    "match_all": {}
-  }
-}
-
-# 重複したデータを入れる
-DELETE /duplicate
-
-POST /duplicate/_doc
-{
-  "name": "Duplicated text",
-  "duplicate_id": 3
-}
-
-GET /duplicate/_search
-
-# select distinct * from duplicate
-GET /duplicate/_search
-{
-  "collapse": {
-    "field": "duplicate_id"
-  },
-  "query": {
-    "match_all": {}
-  }
-}
-
-# "unknown type for collapse field `name`, only keywords and numbers are accepted"
-GET /duplicate/_search
-{
-  "collapse": {
-    "field": "name"
-  },
-  "query": {
-    "match_all": {}
-  }
-}
-
-GET /duplicate/_search
-{
-  "collapse": {
-    "field": "name.keyword"
-  },
-  "query": {
-    "match_all": {}
-  }
-}
-
-
-GET /bank/_search
-
-# select * from bank where account_number = 1
-# term は完全一致か確認
-GET /bank/_search
-{
-  "query": {
-    "term": {
-      "account_number": {
-        "value": 1
-      }
-    }
-  }
-}
-
-# select * from bank where email = "amberduke@pyrami.com"
-GET /bank/_search
-{
-  "query": {
-    "term": {
-      "email.keyword": {
-        "value": "daleadams@boink.com"
-      }
-    }
-  }
-}
-
-# terms は完全一致で複数の値を指定できる
-# select * form bank where employer in ("Pyrami","Anocha","Reversus")
-
-GET /bank/_search
-{
   "query": {
     "terms": {
       "employer.keyword": [
@@ -207,87 +163,16 @@ GET /bank/_search
   }
 }
 
-GET /bank/_search
-
-# select * from bank where email like '%son%' limit 20;
-GET /bank/_search
-{
-  "query": {
-    "wildcard": {
-      "email.keyword": {
-        "value": "*son*"
-      }
-    }
-  },
-  "size": 20
-}
-
-# select * from bank where balance >= 49000
-GET /bank/_search
-{
-  "query": {
-    "range": {
-      "balance": {
-        "gte": 49000
-      }
-    }
-  }
-}
 # 複合クエリ(compound queries)
-# select * from product where age = 23 and balance >= 40000
-GET /bank/_search
-{
-  "query": {
-    "bool": {
-      "must": [
-        {
-          "term": {
-          "age": {
-            "value": 23
-          }
-        }
-        },
-          {
-            "range": {
-              "balance": {
-                "gte": 40000
-              }
-            }
-          }
-      ]
-    }
-  }
-}
+# select email from product where age = 23 and (balance >= 40000 or city = "TX") order by balance DESC limit 3
 
-# select * from product where age = 23 or balance >= 49000
+# must句は「必ず含ままれているべき」クエリ条件
+# bool は内でクエリを組み合わせられる
+# should句は or 条件
+# range は値の範囲検索
 GET /bank/_search
 {
-  "query": {
-    "bool": {
-      "should": [
-        {
-          "term": {
-          "age": {
-            "value": 23
-          }
-        }
-        },
-          {
-            "range": {
-              "balance": {
-                "gte": 49000
-              }
-            }
-          }
-      ]
-    }
-  }
-}
-
-# AND,OR を組み合わせるため、 bool query をネスト
-# select * from product where age = 23 and (balance >= 40000 or city = "TX")
-GET /bank/_search
-{
+  "_source": "email",
   "query": {
     "bool": {
       "must": [
@@ -320,16 +205,6 @@ GET /bank/_search
         }
       ]
     }
-  }
-}
-
-GET /bank/_search
-
-# select * from bank order by balance DESC limit 1
-GET /bank/_search
-{
-  "query": {
-    "match_all": {}
   },
   "sort": [
     {
@@ -338,7 +213,7 @@ GET /bank/_search
       }
     }
   ],
-  "size": 1
+  "size": 3
 }
 
 # --------------------------------
