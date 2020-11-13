@@ -47,6 +47,11 @@ POST /reviews/_doc/
   "comment": "this is awesome"
 }
 
+# ドキュメントの型から推論して mapping が定義される
+# 文字列は text型とkeyword型のマルチフィールドとして定義される
+GET /reviews/_mapping
+
+# 型の情報が違うため登録できない
 POST /reviews/_doc/
 {
   "rating": "dummy",
@@ -57,7 +62,7 @@ POST /reviews/_doc/
   "comment": "this is awesome"
 }
 
-# PUT では id 明示的にを指定して作成
+# PUT では id 明示的に指定して作成
 PUT /reviews/_doc/1
 {
   "rating": 5,
@@ -70,14 +75,16 @@ PUT /reviews/_doc/1
 
 GET /reviews/_doc/1
 
-# ドキュメントの型から推論して mapping が定義される
-# 文字列は text型とkeyword型のマルチフィールドとして定義される
-GET /reviews/_mapping
-
 # match は全文検索用のクエリ
 # 転置インデックスを利用して検索
 GET /reviews/_search
-{"query":{"match":{"comment":"this"}}}
+{
+  "query": {
+    "match": {
+      "comment": "this"
+    }
+  }
+}
 
 # 条件を増やしたことで _score の値が増えた(より関連度が高い)
 GET /reviews/_search
@@ -224,7 +231,7 @@ GET /bank/_search
 
 GET /bank/_search
 
-# select avg(balance) from bank
+# select avg(balance) as balance_avg from bank
 GET /bank/_search
 {
   "aggs": {
@@ -237,7 +244,7 @@ GET /bank/_search
   "size": 0
 }
 
-# select max(balance) from bank
+# select max(balance) as max_balance from bank
 GET /bank/_search
 {
   "aggs": {
@@ -265,21 +272,7 @@ GET /bank/_search
   "size": 0
 }
 
-# select * from bank group by state limit 2
-GET /bank/_search
-{
-  "aggs": {
-    "group_by_state": {
-      "terms": {
-        "field": "state.keyword",
-        "size": 2
-      }
-    }
-  },
-  "size": 0
-}
-
-# select avg(balance) from bank group by state limit 1
+# select avg(balance) as group_by_state from bank group by state limit 1
 GET /bank/_search
 {
   "aggs": {
@@ -294,26 +287,6 @@ GET /bank/_search
             "field": "balance"
           }
         }
-      }
-    }
-  },
-  "size": 0
-}
-
-# select avg(balance) from bank where age = 23
-GET /bank/_search
-{
-  "query": {
-    "term": {
-      "age": {
-        "value": 23
-      }
-    }
-  },
-  "aggs": {
-    "balance_avg": {
-      "avg": {
-        "field": "balance"
       }
     }
   },
@@ -419,6 +392,7 @@ POST /_analyze
   "text": "I'm so <em>sleepy</em> and I <strong>hungry</strong>!"
 }
 
+DELETE /analyzer_test
 PUT /analyzer_test
 {
   "settings": {
@@ -449,11 +423,11 @@ POST /analyzer_test/_analyze
 
 # ------------------------
 ### join の利用
-DELETE /my_index/
+DELETE /join/
 
 # mapping(RDBでいうスキーマのようなもの)を定義
 # question is parent of answer
-PUT /my_index?pretty
+PUT /join?pretty
 {
   "mappings": {
     "properties": {
@@ -467,12 +441,11 @@ PUT /my_index?pretty
   }
 }
 
-GET /my_index/
-GET /my_index/_search
+GET /join/
 
 # question documet(親ドキュメント)
 # refresh により変更内容が検索できるタイミングを制御する
-PUT /my_index/_doc/1?refresh&pretty
+PUT /join/_doc/1
 {
   "text": "This is a question",
   "my_join_field": {
@@ -481,16 +454,18 @@ PUT /my_index/_doc/1?refresh&pretty
 }
 
 # 親ドキュメントはリレーション名を記載するだけでもいい
-PUT /my_index/_doc/2?refresh&pretty
+PUT /join/_doc/2
 {
   "text": "This is another question",
   "my_join_field": "question"
 }
 
+GET /join/_search/
+
 # 子ドキュメント
 # リレーション名と親ドキュメントのIDを指定する
 # routing=1 は親子のドキュメントを同じシャードでインデクシングするため
-PUT /my_index/_doc/3?routing=1&refresh&pretty
+PUT /join/_doc/3?routing=1
 {
   "text": "This is an answer",
   "my_join_field": {
@@ -499,7 +474,7 @@ PUT /my_index/_doc/3?routing=1&refresh&pretty
   }
 }
 
-PUT /my_index/_doc/4?routing=1&refresh&pretty
+PUT /join/_doc/4?routing=1
 {
   "text": "This is another answer",
   "my_join_field": {
@@ -508,16 +483,10 @@ PUT /my_index/_doc/4?routing=1&refresh&pretty
   }
 }
 
-GET /my_index/_search?pretty
-{
-  "query": {
-    "match_all": {}
-  },
-  "sort": ["_id"]
-}
+GET /join/_search/
 
 # parent id で絞れる
-GET /my_index/_search
+GET /join/_search
 {
   "query": {
     "parent_id":{
@@ -527,9 +496,20 @@ GET /my_index/_search
   }
 }
 
+# 紐づく answer がない
+GET /join/_search
+{
+  "query": {
+    "parent_id":{
+      "type": "answer",
+      "id":2
+    }
+  }
+}
+
 # terms は group_by
 # parent id で集約(aggregate)する
-GET /my_index/_search
+GET /join/_search
 {
   "aggs": {
     "parents": {
