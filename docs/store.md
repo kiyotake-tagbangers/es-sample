@@ -5,6 +5,8 @@
 - 大きなフィールドを持つドキュメントから特定の特定のフィールドだけを取得したい
 
 ```shell
+PUT store-test
+{
   "mappings": {
     "properties": {
       "title": {
@@ -22,32 +24,31 @@
   }
 }
 
+GET store-test
 
-PUT /my_index/_doc/1
+PUT store-test/_doc/1
 {
   "title":   "Some short title",
   "date":    "2015-01-01",
   "content": "A very long content field..."
 }
+
+GET store-test/_search
+{
+  "stored_fields": [ "title", "date" ]
+}
+
+GET store-test/_search
 ```
 
-```
-GET /my_index/_search
+- _source は取得しないから、巨大なフィールドがあった場合、それを取得しなくて済む
 
-        "_source" : {
-          "title" : "Some short title",
-          "date" : "2015-01-01",
-          "content" : "A very long content field..."
-        }
-```
-
-```
+```shell
 GET /my_index/_search
 {
   "stored_fields": [ "title", "date"]
 }
 
-# _source は取得しないから、巨大なフィールドがあった場合、それを取得しなくて済む
 "fields" : {
           "date" : [
             "2015-01-01T00:00:00.000Z"
