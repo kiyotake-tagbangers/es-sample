@@ -525,6 +525,8 @@ GET /join/_search
 # ------------------------
 ### store の利用
 # 特定のフィールドだけを取得した時に有効
+DELETE store-test
+
 PUT store-test
 {
   "mappings": {
@@ -559,10 +561,10 @@ GET store-test/_search
 }
 
 GET store-test/_search
-
-
 # ------------------------
 ### nested_object の利用
+
+GET /my_index/_mapping
 
 DELETE /my_index
 
@@ -693,4 +695,84 @@ GET my_index/_search
     }
   }
 }
+# ------------------------
+### Alias
+
+# alias field type
+
+DELETE /reviews
+
+# filed を alias で検索できるようにする
+PUT /reviews
+{
+  "mappings": {
+    "properties": {
+      "rating": {
+        "type": "float"
+      },
+      "evaluation": {
+        "type": "alias",
+        "path": "rating"
+      },
+      "author":{
+        "properties": {
+          "first_name":{
+            "type": "text"
+          },
+          "last_name":{
+            "type": "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+PUT /reviews/_doc/1
+{
+  "rating": 5,
+  "author": {
+    "first_name": "Yamada",
+    "last_name": "Jiro"
+  },
+  "comment": "this is excellent!"
+}
+
+GET /reviews/_search
+{
+  "query": {
+    "range": {
+      "rating": {
+        "gte": 3
+      }
+    }
+  }
+}
+
+# alias でも検索ができる
+GET /reviews/_search
+{
+  "query": {
+    "range": {
+      "evaluation": {
+        "gte": 3
+      }
+    }
+  }
+}
+
+# index alias
+# Elasticsearch のアップデート時にインデックスを移行する時などに利用するケースがある
+POST /_aliases
+{
+  "actions" : [
+    { "add" : { "index": "reviews", "alias" : "evaluations" } }
+  ]
+}
+
+# index alias の一覧の取得
+GET /_alias/evaluation
+
+GET /reviews/_doc/1
+GET /evaluations/_doc/1
 ```
