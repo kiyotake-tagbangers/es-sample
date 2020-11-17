@@ -521,4 +521,176 @@ GET /join/_search
   },
   "size": 0
 }
+
+# ------------------------
+### store の利用
+# 特定のフィールドだけを取得した時に有効
+PUT store-test
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "store": true
+      },
+      "date": {
+        "type": "date",
+        "store": true
+      },
+      "content": {
+        "type": "text"
+      }
+    }
+  }
+}
+
+GET store-test
+
+PUT store-test/_doc/1
+{
+  "title":   "Some short title",
+  "date":    "2015-01-01",
+  "content": "A very long content field..."
+}
+
+GET store-test/_search
+{
+  "stored_fields": [ "title", "date" ]
+}
+
+GET store-test/_search
+
+
+# ------------------------
+### nested_object の利用
+
+DELETE /my_index
+
+# 通常の Object型
+PUT my_index/_doc/1
+{
+  "group": "fans",
+  "users": [
+    {
+      "first_name": "John",
+      "last_name": "Smith"
+    },
+    {
+      "first_name": "Alice",
+      "last_name": "White"
+    }
+  ]
+}
+
+# フラットにマピングされるため、組み合わせ違いでもヒットしてしまう
+GET my_index/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "users.first_name": "Alice"
+          }
+        },
+        {
+          "match": {
+            "users.last_name": "Smith"
+          }
+        }
+      ]
+    }
+  }
+}
+
+DELETE my_index
+
+PUT my_index
+{
+  "mappings": {
+      "properties": {
+        "users": {
+          "type": "nested"
+        }
+      }
+    }
+}
+
+PUT my_index/_doc/1
+{
+  "group": "fans",
+  "users": [
+    {
+      "first_name": "John",
+      "last_name": "Smith"
+    },
+    {
+      "first_name": "Alice",
+      "last_name": "White"
+    }
+  ]
+}
+
+# nested type になっている
+GET my_index/_mapping
+
+# 組み合わせ違いはヒットしない
+GET my_index/_search
+{
+  "query": {
+    "nested": {
+      "path": "users",
+      "query": {
+        "bool": {
+          "must": [
+            { "match": { "users.first_name": "Alice" }},
+            { "match": { "users.last_name":  "Smith" }}
+          ]
+        }
+      }
+    }
+  }
+}
+
+# 組み合わせが同じなため、ドキュメントが返される
+GET my_index/_search
+{
+  "query": {
+    "nested": {
+      "path": "users",
+      "query": {
+        "bool": {
+          "must": [
+            { "match": { "users.first_name": "Alice" }},
+            { "match": { "users.last_name":  "White" }}
+          ]
+        }
+      }
+    }
+  }
+}
+
+GET my_index/_search
+{
+  "query": {
+    "nested": {
+      "path": "users",
+      "query": {
+        "bool": {
+          "must": [
+            { "match": { "users.first_name": "Alice" }},
+            { "match": { "users.last_name":  "White" }}
+          ]
+        }
+      },
+      "inner_hits": {
+        "highlight": {
+          "fields": {
+            "user.first": {}
+          }
+        }
+      }
+    }
+  }
+}
 ```
