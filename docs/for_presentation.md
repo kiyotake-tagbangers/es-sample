@@ -272,29 +272,8 @@ GET /bank/_search
   "size": 0
 }
 
-# select avg(balance) as group_by_state from bank group by state limit 1
-GET /bank/_search
-{
-  "aggs": {
-    "group_by_state": {
-      "terms": {
-        "field": "state.keyword",
-        "size": 1
-      },
-      "aggs": {
-        "balance_avg": {
-          "avg": {
-            "field": "balance"
-          }
-        }
-      }
-    }
-  },
-  "size": 0
-}
-
 # ------------------------
-### full text
+### 全文検索
 
 # いずれかの単語を含んでいればヒット
 GET /recipe/_search
@@ -350,7 +329,8 @@ GET /recipe/_search
 }
 
 # ------------------------
-### analyzer の利用
+### analyzeの利用
+
 # standard analyzer の使用
 POST /_analyze
 {
@@ -367,7 +347,7 @@ POST /_analyze
   "filter": ["lowercase"]
 }
 
-# simple analyzer
+# simple analyzer(なにしてたっけ)
 POST /_analyze
 {
   "text": "Is that Mike's cute-looing dog?",
@@ -441,7 +421,7 @@ PUT /join?pretty
   }
 }
 
-GET /join/
+GET /join/_mapping
 
 # question documet(親ドキュメント)
 # refresh により変更内容が検索できるタイミングを制御する
@@ -546,7 +526,7 @@ PUT store-test
   }
 }
 
-GET store-test
+GET store-test/_mapping
 
 PUT store-test/_doc/1
 {
@@ -563,8 +543,6 @@ GET store-test/_search
 GET store-test/_search
 # ------------------------
 ### nested_object の利用
-
-GET /my_index/_mapping
 
 DELETE /my_index
 
@@ -703,6 +681,7 @@ GET my_index/_search
 DELETE /reviews
 
 # filed を alias で検索できるようにする
+# 利用ケース
 PUT /reviews
 {
   "mappings": {
@@ -775,4 +754,23 @@ GET /_alias/evaluation
 
 GET /reviews/_doc/1
 GET /evaluations/_doc/1
+
+PUT /order/_doc/1
+{
+  "purchased_at": "2016-12-26T08:29:47Z",
+  "lines": [
+    {
+      "product_id": 2,
+      "amount": 98.87,
+      "quantity": 3
+    }
+  ],
+  "total_amount": 98.87,
+  "salesman": {
+    "id": 5,
+    "name": "Carlyn Stegers"
+  },
+  "sales_channel": "web",
+  "status": "cancelled"
+}
 ```
